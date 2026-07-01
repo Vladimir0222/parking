@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<title>ПАРКУВАННЯ — ТРЦ</title>
+<style>
+  @font-face {
+    font-family: 'MatrixMono';
+    src: local('Courier New');
+  }
+
+  :root {
+    --bg: #010401;
+    --green-core: #00ff41;
+    --green-dim: #0a7a2a;
+    --green-bright: #b8ffcb;
+    --green-glow: rgba(0,255,65,0.55);
+    --red-warn: #ff3b3b;
+    --panel-bg: rgba(0, 10, 2, 0.82);
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: var(--bg);
+    overflow: hidden;
+    font-family: 'Courier New', Consolas, monospace;
+  }
+
+  #rain {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+  }
+
+  .stage {
+    position: relative;
+    z-index: 2;
+    height: 100%;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .terminal {
+    width: 100%;
+    max-width: 460px;
+    background: var(--panel-bg);
+    border: 1px solid var(--green-dim);
+    box-shadow:
+      0 0 2px var(--green-core),
+      0 0 24px var(--green-glow),
+      inset 0 0 40px rgba(0,255,65,0.05);
+    padding: 28px 26px 24px;
+    position: relative;
+  }
+
+  .terminal::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--green-core), transparent);
+    opacity: 0.8;
+  }
+
+  .top-line {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--green-dim);
+    margin-bottom: 18px;
+    text-transform: uppercase;
+  }
+
+  .top-line .dot {
+    color: var(--green-core);
+    animation: blink 1.4s step-start infinite;
+  }
+
+  h1 {
+    margin: 0 0 4px;
+    font-size: 26px;
+    letter-spacing: 4px;
+    color: var(--green-core);
+    text-shadow: 0 0 8px var(--green-glow), 0 0 22px var(--green-glow);
+    font-weight: 700;
+  }
+
+  .subtitle {
+    color: var(--green-dim);
+    font-size: 12px;
+    letter-spacing: 3px;
+    margin-bottom: 22px;
+    text-transform: uppercase;
+  }
+
+  .zone-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    border-top: 1px dashed var(--green-dim);
+    border-bottom: 1px dashed var(--green-dim);
+    padding: 12px 0;
+    margin-bottom: 22px;
+  }
+
+  .zone-row .label {
+    font-size: 12px;
+    color: var(--green-dim);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .zone-row .value {
+    font-size: 15px;
+    color: var(--green-bright);
+    letter-spacing: 1px;
+  }
+
+  .clock-wrap {
+    text-align: center;
+    margin: 8px 0 26px;
+  }
+
+  .clock-label {
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--green-dim);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .clock {
+    font-size: 52px;
+    font-weight: 700;
+    color: var(--green-core);
+    letter-spacing: 4px;
+    text-shadow: 0 0 6px var(--green-glow), 0 0 30px var(--green-glow);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .clock.idle {
+    color: var(--green-dim);
+    text-shadow: none;
+  }
+
+  .sum-box {
+    background: rgba(0,255,65,0.04);
+    border: 1px solid var(--green-dim);
+    padding: 16px;
+    margin-bottom: 22px;
+    text-align: center;
+  }
+
+  .sum-label {
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--green-dim);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .sum-value {
+    font-size: 34px;
+    color: var(--green-bright);
+    text-shadow: 0 0 10px var(--green-glow);
+    font-weight: 700;
+  }
+
+  .sum-hint {
+    font-size: 11px;
+    color: var(--green-dim);
+    margin-top: 6px;
+    letter-spacing: 1px;
+  }
+
+  button {
+    width: 100%;
+    background: transparent;
+    border: 1px solid var(--green-core);
+    color: var(--green-core);
+    font-family: inherit;
+    font-size: 14px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    padding: 14px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    margin-bottom: 10px;
+  }
+
+  button:hover:not(:disabled) {
+    background: var(--green-core);
+    color: #000;
+    box-shadow: 0 0 18px var(--green-glow);
+  }
+
+  button:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+
+  button.pay {
+    border-color: var(--green-bright);
+    color: var(--green-bright);
+  }
+  button.pay:hover:not(:disabled) {
+    background: var(--green-bright);
+    box-shadow: 0 0 18px var(--green-bright);
+  }
+
+  button.stop {
+    border-color: var(--red-warn);
+    color: var(--red-warn);
+  }
+  button.stop:hover:not(:disabled) {
+    background: var(--red-warn);
+    color: #000;
+    box-shadow: 0 0 18px var(--red-warn);
+  }
+
+  .status {
+    text-align: center;
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--green-dim);
+    margin-top: 14px;
+    min-height: 14px;
+    text-transform: uppercase;
+  }
+
+  .status.paid {
+    color: var(--green-bright);
+  }
+
+  @keyframes blink {
+    50% { opacity: 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .top-line .dot { animation: none; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="rain"></canvas>
+
+<div class="stage">
+  <div class="terminal">
+    <div class="top-line">
+      <span><span class="dot">●</span> СИСТЕМА АКТИВНА</span>
+      <span id="dateNow">01.07.2026</span>
+    </div>
+
+    <h1>ПАРКУВАННЯ</h1>
+    <div class="subtitle">Торговий центр // термінал в’їзду</div>
+
+    <div class="zone-row">
+      <span class="label">Зона</span>
+      <span class="value">A — Єдина зона</span>
+    </div>
+    <div class="zone-row">
+      <span class="label">Тариф</span>
+      <span class="value">20 ГРН / ГОД</span>
+    </div>
+
+    <div class="clock-wrap">
+      <div class="clock-label" id="clockLabel">Час на паркуванні</div>
+      <div class="clock idle" id="clock">00:00:00</div>
+    </div>
+
+    <div class="sum-box">
+      <div class="sum-label">До сплати</div>
+      <div class="sum-value" id="sum">0 грн</div>
+      <div class="sum-hint" id="sumHint">Оплата за кожну розпочату годину</div>
+    </div>
+
+    <button id="startBtn">В’їзд · почати паркування</button>
+    <button id="payBtn" class="pay" disabled>Оплатити та виїхати</button>
+    <button id="resetBtn" class="stop" style="display:none;">Новий сеанс</button>
+
+    <div class="status" id="status">Натисніть «В’їзд», щоб почати відлік</div>
+  </div>
+</div>
+
+<script>
+  // ---------- Matrix rain background ----------
+  const canvas = document.getElementById('rain');
+  const ctx = canvas.getContext('2d');
+  let w, h, columns, drops;
+  const glyphs = 'アイウエオカキクケコサシスセソタチツテト0123456789ABCDEF+-*/=<>';
+
+  function resize() {
+    w = canvas.width = window.innerWidth;
+    h = canvas.height = window.innerHeight;
+    const fontSize = 16;
+    columns = Math.floor(w / fontSize);
+    drops = new Array(columns).fill(0).map(() => Math.random() * -100);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  function drawRain() {
+    ctx.fillStyle = 'rgba(1, 4, 1, 0.08)';
+    ctx.fillRect(0, 0, w, h);
+    const fontSize = 16;
+    ctx.font = fontSize + 'px monospace';
+
+    for (let i = 0; i < columns; i++) {
+      const text = glyphs[Math.floor(Math.random() * glyphs.length)];
+      const x = i * fontSize;
+      const y = drops[i] * fontSize;
+
+      ctx.fillStyle = Math.random() > 0.97 ? '#e4ffe9' : '#00ff41';
+      ctx.globalAlpha = Math.random() > 0.95 ? 1 : 0.65;
+      ctx.fillText(text, x, y);
+      ctx.globalAlpha = 1;
+
+      if (y > h && Math.random() > 0.975) {
+        drops[i] = 0;
+      }
+      drops[i]++;
+    }
+  }
+  setInterval(drawRain, 45);
+
+  // ---------- Parking logic ----------
+  const RATE_PER_HOUR = 20; // грн
+
+  const startBtn = document.getElementById('startBtn');
+  const payBtn = document.getElementById('payBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const clockEl = document.getElementById('clock');
+  const clockLabel = document.getElementById('clockLabel');
+  const sumEl = document.getElementById('sum');
+  const sumHint = document.getElementById('sumHint');
+  const statusEl = document.getElementById('status');
+  const dateNowEl = document.getElementById('dateNow');
+
+  let startTime = null;
+  let tickInterval = null;
+  let paid = false;
+
+  function formatDate(d) {
+    const pad = n => String(n).padStart(2, '0');
+    return `${pad(d.getDate())}.${pad(d.getMonth()+1)}.${d.getFullYear()}`;
+  }
+  dateNowEl.textContent = formatDate(new Date());
+
+  function formatDuration(ms) {
+    const totalSec = Math.floor(ms / 1000);
+    const hh = Math.floor(totalSec / 3600);
+    const mm = Math.floor((totalSec % 3600) / 60);
+    const ss = totalSec % 60;
+    const pad = n => String(n).padStart(2, '0');
+    return `${pad(hh)}:${pad(mm)}:${pad(ss)}`;
+  }
+
+  function calcAmount(ms) {
+    const hours = ms / 3600000;
+    const billedHours = Math.max(1, Math.ceil(hours));
+    return billedHours * RATE_PER_HOUR;
+  }
+
+  function tick() {
+    const elapsed = Date.now() - startTime;
+    clockEl.textContent = formatDuration(elapsed);
+    sumEl.textContent = calcAmount(elapsed) + ' грн';
+  }
+
+  startBtn.addEventListener('click', () => {
+    startTime = Date.now();
+    paid = false;
+    clockEl.classList.remove('idle');
+    clockLabel.textContent = 'Час на паркуванні';
+    statusEl.textContent = 'Відлік розпочато. Гарного шопінгу.';
+    statusEl.classList.remove('paid');
+    startBtn.disabled = true;
+    payBtn.disabled = false;
+    resetBtn.style.display = 'none';
+    tick();
+    tickInterval = setInterval(tick, 1000);
+  });
+
+  payBtn.addEventListener('click', () => {
+    if (!startTime || paid) return;
+    clearInterval(tickInterval);
+    const elapsed = Date.now() - startTime;
+    const amount = calcAmount(elapsed);
+    clockEl.textContent = formatDuration(elapsed);
+    sumEl.textContent = amount + ' грн';
+    sumHint.textContent = 'Сплачено — можна виїжджати';
+    clockLabel.textContent = 'Загальний час паркування';
+    statusEl.textContent = `Оплату ${amount} грн прийнято. Дякуємо!`;
+    statusEl.classList.add('paid');
+    paid = true;
+    payBtn.disabled = true;
+    resetBtn.style.display = 'block';
+  });
+
+  resetBtn.addEventListener('click', () => {
+    startTime = null;
+    paid = false;
+    clockEl.classList.add('idle');
+    clockEl.textContent = '00:00:00';
+    clockLabel.textContent = 'Час на паркуванні';
+    sumEl.textContent = '0 грн';
+    sumHint.textContent = 'Оплата за кожну розпочату годину';
+    statusEl.textContent = 'Натисніть «В’їзд», щоб почати відлік';
+    statusEl.classList.remove('paid');
+    startBtn.disabled = false;
+    payBtn.disabled = true;
+    resetBtn.style.display = 'none';
+  });
+</script>
+
+</body>
+</html>
